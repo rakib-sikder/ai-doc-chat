@@ -6,6 +6,7 @@ import { animate, stagger } from "animejs";
 
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LogoMark } from "@/components/logo-mark";
 import { cn } from "@/lib/utils";
 
 interface ChatSidebarProps {
@@ -48,12 +49,7 @@ export function ChatSidebar({
     <aside className="relative w-80 shrink-0 border-r border-border bg-sidebar/70 backdrop-blur-xl p-6 flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div data-reveal="logo" className="relative h-8 w-8 shrink-0">
-            <div className="absolute inset-0 rounded-lg bg-primary/50 blur-md animate-pulse" />
-            <div className="relative h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold shadow-sm">
-              D
-            </div>
-          </div>
+          <LogoMark />
           <h1 data-reveal="title" className="text-lg font-semibold tracking-tight">
             DocChat
           </h1>
