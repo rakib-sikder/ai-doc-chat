@@ -1,4 +1,5 @@
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import { cosineSimilarity } from "./embeddings";
 
@@ -15,7 +16,10 @@ interface SessionData {
   chunks: StoredChunk[];
 }
 
-const DATA_DIR = path.join(process.cwd(), ".data", "sessions");
+// Serverless platforms (Vercel, Lambda) only allow writes under the OS temp dir —
+// the project directory itself is read-only at runtime. Sessions are therefore
+// ephemeral per warm instance; swap for a real DB before relying on this in production.
+const DATA_DIR = path.join(os.tmpdir(), "ai-doc-chat-sessions");
 
 async function ensureDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });

@@ -1,4 +1,10 @@
-import { pipeline, type FeatureExtractionPipeline } from "@huggingface/transformers";
+import { env, pipeline, type FeatureExtractionPipeline } from "@huggingface/transformers";
+import os from "os";
+import path from "path";
+
+// Serverless platforms (Vercel, Lambda) only allow writes under the OS temp dir —
+// the project directory itself is read-only at runtime.
+env.cacheDir = path.join(os.tmpdir(), "transformers-cache");
 
 let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
 

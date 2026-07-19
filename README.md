@@ -35,8 +35,12 @@ Open [http://localhost:3000](http://localhost:3000), upload a PDF or `.txt` file
 
 ## Notes for production use
 
-- Swap the JSON file store (`lib/store.ts`) for a real vector database once you need
-  multi-instance deployments or persistence beyond a single server's disk.
+- Session data and the embedding model cache are stored under the OS temp dir so this
+  runs on serverless platforms (Vercel, Lambda) whose project directory is read-only —
+  but that also means sessions are ephemeral per warm instance and the ~90MB model may
+  re-download on cold starts. Swap `lib/store.ts` for a real vector database (pgvector/
+  Pinecone/Qdrant) and consider a persistent server (Railway/Render/Fly) if you need
+  durable sessions or consistently fast cold starts.
 - Add auth + per-user session scoping before exposing this publicly.
 - `maxDuration` is set to 60s on both API routes for larger documents — adjust for your
   hosting platform's limits.
