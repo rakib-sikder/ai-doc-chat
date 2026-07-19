@@ -8,6 +8,7 @@ import { MessageCircle } from "lucide-react";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { ChatMessage, type Message } from "@/components/chat-message";
 import { ChatComposer } from "@/components/chat-composer";
+import { AmbientBackground } from "@/components/ambient-background";
 
 export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -23,13 +24,14 @@ export default function Home() {
 
   useGSAP(
     () => {
-      gsap.from("[data-reveal]", {
-        opacity: 0,
-        y: 14,
-        duration: 0.5,
-        stagger: 0.08,
-        ease: "power2.out",
-      });
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+      tl.from("[data-reveal='logo']", { opacity: 0, scale: 0.5, duration: 0.5, ease: "back.out(2.2)" })
+        .from("[data-reveal='title']", { opacity: 0, x: -10, duration: 0.4 }, "<0.05")
+        .from("[data-reveal='sidebar-text']", { opacity: 0, y: 8, duration: 0.45 }, "-=0.2")
+        .from("[data-reveal='dropzone']", { opacity: 0, y: 16, scale: 0.97, duration: 0.5 }, "-=0.25")
+        .from("[data-reveal='sidebar-footer']", { opacity: 0, y: 8, duration: 0.4 }, "-=0.2")
+        .from("[data-reveal='empty-state']", { opacity: 0, y: 10, duration: 0.5 }, "-=0.35")
+        .from("[data-reveal='composer']", { opacity: 0, y: 16, duration: 0.5 }, "-=0.4");
     },
     { scope: rootRef }
   );
@@ -108,27 +110,27 @@ export default function Home() {
   }, [input, sessionId, isStreaming, messages]);
 
   return (
-    <div ref={rootRef} className="flex h-full min-h-screen bg-background text-foreground">
-      <div data-reveal>
-        <ChatSidebar
-          uploading={uploading}
-          uploadError={uploadError}
-          dragActive={dragActive}
-          sources={sources}
-          fileInputRef={fileInputRef}
-          onDragActiveChange={setDragActive}
-          onFiles={handleFiles}
-        />
-      </div>
+    <div ref={rootRef} className="relative flex h-full min-h-screen text-foreground">
+      <AmbientBackground />
+
+      <ChatSidebar
+        uploading={uploading}
+        uploadError={uploadError}
+        dragActive={dragActive}
+        sources={sources}
+        fileInputRef={fileInputRef}
+        onDragActiveChange={setDragActive}
+        onFiles={handleFiles}
+      />
 
       <main className="flex-1 flex flex-col min-w-0">
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.length === 0 && (
             <div
-              data-reveal
+              data-reveal="empty-state"
               className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3"
             >
-              <div className="flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
+              <div className="flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_0_0_8px_var(--accent)] animate-pulse">
                 <MessageCircle className="size-5" />
               </div>
               <p className="text-sm">
@@ -141,7 +143,7 @@ export default function Home() {
           ))}
         </div>
 
-        <div data-reveal>
+        <div data-reveal="composer" className="bg-background/70 backdrop-blur-xl">
           <ChatComposer
             input={input}
             disabled={!sessionId || isStreaming}

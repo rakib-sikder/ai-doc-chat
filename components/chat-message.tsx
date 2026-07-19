@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 
 import { cn } from "@/lib/utils";
+import { ThinkingDots } from "@/components/thinking-dots";
 
 export interface Message {
   role: "user" | "assistant";
@@ -10,6 +11,7 @@ export interface Message {
 
 export function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === "user";
+  const isPending = !isUser && message.content === "";
 
   return (
     <div
@@ -20,20 +22,24 @@ export function ChatMessage({ message }: { message: Message }) {
     >
       <div
         className={cn(
-          "max-w-2xl rounded-2xl px-4 py-3 text-sm shadow-sm",
+          "max-w-2xl rounded-2xl px-4 py-3 text-sm shadow-sm transition-shadow hover:shadow-md",
           isUser
             ? "bg-primary text-primary-foreground"
             : "bg-card border border-border"
         )}
       >
-        <div
-          className={cn(
-            "prose prose-sm max-w-none",
-            isUser ? "prose-invert" : "dark:prose-invert"
-          )}
-        >
-          <ReactMarkdown>{message.content || "…"}</ReactMarkdown>
-        </div>
+        {isPending ? (
+          <ThinkingDots />
+        ) : (
+          <div
+            className={cn(
+              "prose prose-sm max-w-none",
+              isUser ? "prose-invert" : "dark:prose-invert"
+            )}
+          >
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
         {message.sources && message.sources.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1 text-xs text-muted-foreground">
             {message.sources.map((s, idx) => (
