@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DocChat — RAG Document Q&A
 
-## Getting Started
+Upload a PDF or text file and ask questions about it. Answers are grounded strictly in the
+document's content, with inline source citations — no hallucinated answers outside the
+uploaded material.
 
-First, run the development server:
+## How it works
+
+1. **Ingest** (`/api/ingest`) — extracts text from the uploaded file(s), splits it into
+   overlapping chunks, and embeds each chunk **locally** using `Xenova/all-MiniLM-L6-v2`
+   via `@huggingface/transformers` (no external embedding API, no per-chunk cost).
+2. **Store** — chunk embeddings are persisted per-session as JSON under `.data/sessions/`
+   (swap this for a real vector DB like pgvector/Pinecone/Qdrant for production scale).
+3. **Chat** (`/api/chat`) — embeds the question, retrieves the top-k most similar chunks
+   via cosine similarity, and streams a Claude-generated answer constrained to that
+   retrieved context, with source attribution.
+
+## Stack
+
+Next.js 16 (App Router) · TypeScript · Tailwind CSS · `@huggingface/transformers`
+(local embeddings) · `@anthropic-ai/sdk` (generation, streamed) · `pdf-parse`
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local   # add your ANTHROPIC_API_KEY
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000), upload a PDF or `.txt` file, and start asking questions.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> The first request downloads the local embedding model (~90MB) and caches it — expect a
+> short delay on first upload only.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Notes for production use
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Swap the JSON file store (`lib/store.ts`) for a real vector database once you need
+  multi-instance deployments or persistence beyond a single server's disk.
+- Add auth + per-user session scoping before exposing this publicly.
+- `maxDuration` is set to 60s on both API routes for larger documents — adjust for your
+  hosting platform's limits.
