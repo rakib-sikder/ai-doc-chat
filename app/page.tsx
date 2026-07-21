@@ -9,9 +9,12 @@ import { ChatSidebar } from "@/components/chat-sidebar";
 import { ChatMessage, type Message } from "@/components/chat-message";
 import { ChatComposer } from "@/components/chat-composer";
 import { AmbientBackground } from "@/components/ambient-background";
+import type { StoredChunk } from "@/lib/store";
 
 export default function Home() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  // The browser holds the embedded chunks and sends them with each question —
+  // serverless instances share no filesystem, so the server keeps no session state.
+  const [chunks, setChunks] = useState<StoredChunk[]>([]);
   const [sources, setSources] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -44,26 +47,28 @@ export default function Home() {
 
       const formData = new FormData();
       Array.from(fileList).forEach((f) => formData.append("files", f));
-      if (sessionId) formData.append("sessionId", sessionId);
 
       try {
         const res = await fetch("/api/ingest", { method: "POST", body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Upload failed");
-        setSessionId(data.sessionId);
-        setSources(data.sources ?? []);
+        setChunks((prev) => {
+          const next = [...prev, ...(data.chunks ?? [])];
+          setSources(Array.from(new Set(next.map((c) => c.source))));
+          return next;
+        });
       } catch (err) {
         setUploadError(err instanceof Error ? err.message : "Upload failed");
       } finally {
         setUploading(false);
       }
     },
-    [sessionId]
+    []
   );
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();
-    if (!text || !sessionId || isStreaming) return;
+    if (!text || chunks.length === 0 || isStreaming) return;
 
     const history = messages.map((m) => ({ role: m.role, content: m.content }));
     setMessages((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: "" }]);
@@ -74,7 +79,7 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, message: text, history }),
+        body: JSON.stringify({ message: text, history, chunks }),
       });
 
       const sourcesHeader = res.headers.get("X-Sources");
@@ -107,7 +112,7 @@ export default function Home() {
     } finally {
       setIsStreaming(false);
     }
-  }, [input, sessionId, isStreaming, messages]);
+  }, [input, chunks, isStreaming, messages]);
 
   return (
     <div ref={rootRef} className="relative flex h-full min-h-screen text-foreground">
@@ -134,7 +139,7 @@ export default function Home() {
                 <MessageCircle className="size-5" />
               </div>
               <p className="text-sm">
-                {sessionId ? "Ask a question about your document." : "Upload a document to get started."}
+                {chunks.length > 0 ? "Ask a question about your document." : "Upload a document to get started."}
               </p>
             </div>
           )}
@@ -146,9 +151,9 @@ export default function Home() {
         <div data-reveal="composer" className="bg-background/70 backdrop-blur-xl">
           <ChatComposer
             input={input}
-            disabled={!sessionId || isStreaming}
-            sendDisabled={!sessionId || isStreaming || !input.trim()}
-            placeholder={sessionId ? "Ask a question about your document…" : "Upload a document first…"}
+            disabled={chunks.length === 0 || isStreaming}
+            sendDisabled={chunks.length === 0 || isStreaming || !input.trim()}
+            placeholder={chunks.length > 0 ? "Ask a question about your document…" : "Upload a document first…"}
             onChange={setInput}
             onSubmit={sendMessage}
           />

@@ -9,11 +9,14 @@ uploaded material.
 1. **Ingest** (`/api/ingest`) — extracts text from the uploaded file(s), splits it into
    overlapping chunks, and embeds each chunk **locally** using `Xenova/all-MiniLM-L6-v2`
    via `@huggingface/transformers` (no external embedding API, no per-chunk cost).
-2. **Store** — chunk embeddings are persisted per-session as JSON under `.data/sessions/`
-   (swap this for a real vector DB like pgvector/Pinecone/Qdrant for production scale).
-3. **Chat** (`/api/chat`) — embeds the question, retrieves the top-k most similar chunks
-   via cosine similarity, and streams a Gemini-generated answer constrained to that
-   retrieved context, with source attribution.
+2. **Store** — the embedded chunks are returned to the browser, which holds them for the
+   session and sends them back with each question. Serverless instances share no
+   filesystem, so a server-side session store would randomly lose sessions between the
+   upload and the chat request (swap for a real vector DB like pgvector/Pinecone/Qdrant
+   for production scale).
+3. **Chat** (`/api/chat`) — embeds the question, ranks the supplied chunks by cosine
+   similarity, and streams a Gemini-generated answer constrained to that retrieved
+   context, with source attribution.
 
 ## Stack
 

@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { embedText } from "@/lib/embeddings";
-import { search } from "@/lib/store";
-
-const MODEL = "gemini-3.1-flash-lite";
+import { topKChunks, type StoredChunk } from "@/lib/store";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+const MODEL = "gemini-3.1-flash-lite";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -14,17 +14,24 @@ interface ChatMessage {
 }
 
 export async function POST(req: NextRequest) {
-  const { sessionId, message, history } = (await req.json()) as {
-    sessionId?: string;
+  const { message, history, chunks } = (await req.json()) as {
     message?: string;
     history?: ChatMessage[];
+    chunks?: StoredChunk[];
   };
 
-  if (!sessionId || !message) {
-    return new Response(JSON.stringify({ error: "sessionId and message are required" }), {
+  if (!message) {
+    return new Response(JSON.stringify({ error: "message is required" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  if (!Array.isArray(chunks) || chunks.length === 0) {
+    return new Response(
+      JSON.stringify({ error: "No document chunks provided. Upload a file first." }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   if (!process.env.GEMINI_API_KEY) {
@@ -37,16 +44,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let matches;
-  try {
-    const queryEmbedding = await embedText(message);
-    matches = await search(sessionId, queryEmbedding, 4);
-  } catch {
-    return new Response(
-      JSON.stringify({ error: "No documents found for this session. Upload a file first." }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
-  }
+  const queryEmbedding = await embedText(message);
+  const matches = topKChunks(chunks, queryEmbedding, 4);
 
   const context = matches
     .map((m, i) => `[Source ${i + 1}: ${m.source}]\n${m.text}`)
