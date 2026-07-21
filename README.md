@@ -12,19 +12,19 @@ uploaded material.
 2. **Store** — chunk embeddings are persisted per-session as JSON under `.data/sessions/`
    (swap this for a real vector DB like pgvector/Pinecone/Qdrant for production scale).
 3. **Chat** (`/api/chat`) — embeds the question, retrieves the top-k most similar chunks
-   via cosine similarity, and streams a Claude-generated answer constrained to that
+   via cosine similarity, and streams a Gemini-generated answer constrained to that
    retrieved context, with source attribution.
 
 ## Stack
 
 Next.js 16 (App Router) · TypeScript · Tailwind CSS · `@huggingface/transformers`
-(local embeddings) · `@anthropic-ai/sdk` (generation, streamed) · `pdf-parse`
+(local embeddings) · `@google/genai` (generation, streamed) · `pdf-parse`
 
 ## Getting started
 
 ```bash
 npm install
-cp .env.example .env.local   # add your ANTHROPIC_API_KEY
+cp .env.example .env.local   # add your GEMINI_API_KEY
 npm run dev
 ```
 

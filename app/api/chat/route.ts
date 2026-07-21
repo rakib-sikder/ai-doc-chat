@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { embedText } from "@/lib/embeddings";
 import { search } from "@/lib/store";
+
+const MODEL = "gemini-3.1-flash-lite";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -25,11 +27,11 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return new Response(
       JSON.stringify({
         error:
-          "ANTHROPIC_API_KEY is not configured on the server. Add it to .env.local and restart the dev server.",
+          "GEMINI_API_KEY is not configured on the server. Add it to .env.local and restart the dev server.",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
@@ -56,29 +58,30 @@ Cite sources inline like [Source 1] when you use them. If the answer isn't in th
 Document excerpts:
 ${context}`;
 
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-  const messages: Anthropic.MessageParam[] = [
-    ...(history ?? []).map((m) => ({ role: m.role, content: m.content }) satisfies Anthropic.MessageParam),
-    { role: "user", content: message },
+  const contents = [
+    ...(history ?? []).map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    })),
+    { role: "user", parts: [{ text: message }] },
   ];
 
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
       try {
-        const anthropicStream = anthropic.messages.stream({
-          model: "claude-sonnet-4-5",
-          max_tokens: 1024,
-          system: systemPrompt,
-          messages,
+        const geminiStream = await ai.models.generateContentStream({
+          model: MODEL,
+          contents,
+          config: { systemInstruction: systemPrompt, maxOutputTokens: 1024 },
         });
 
-        anthropicStream.on("text", (text) => {
-          controller.enqueue(encoder.encode(text));
-        });
+        for await (const chunk of geminiStream) {
+          if (chunk.text) controller.enqueue(encoder.encode(chunk.text));
+        }
 
-        await anthropicStream.finalMessage();
         controller.close();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error while generating a response";
